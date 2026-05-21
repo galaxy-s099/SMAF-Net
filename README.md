@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # SMAF-Net
 
 Signed Multi-Atlas Fusion Network for fMRI-based brain disorder classification.
@@ -18,3 +19,6 @@ Expected Kaggle path:
 
 ```text
 /kaggle/input/datasets/xingyushen666/abide-fc-three-atlas
+=======
+# SMAF-Net
+>>>>>>> 4744487edc91b4258d711a10586fbb9cb6ac13be
