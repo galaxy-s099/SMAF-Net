@@ -46,8 +46,12 @@ class SMAFEdgeNet(nn.Module):
             dropout=dropout
         )
 
+        # v4.1:
+        # raw branch embedding: 3 * embedding_dim
+        # attention-enhanced embedding: 3 * embedding_dim
+        # final fusion dim = 6 * embedding_dim
         self.classifier = nn.Sequential(
-            nn.Linear(embedding_dim * 3, hidden_dim),
+            nn.Linear(embedding_dim * 6, hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, 2)
@@ -63,9 +67,15 @@ class SMAFEdgeNet(nn.Module):
 
         z_enhanced, attn_weight = self.cross_atlas_attention(z)
 
-        # flatten: B × (3D)
-        z_flat = z_enhanced.reshape(z_enhanced.size(0), -1)
+        # 原始三图谱表示
+        z_raw = z.reshape(z.size(0), -1)
 
-        logits = self.classifier(z_flat)
+        # attention 增强后的三图谱表示
+        z_attn = z_enhanced.reshape(z_enhanced.size(0), -1)
+
+        # residual-style fusion
+        z_final = torch.cat([z_raw, z_attn], dim=-1)
+
+        logits = self.classifier(z_final)
 
         return logits
