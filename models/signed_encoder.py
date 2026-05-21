@@ -6,7 +6,7 @@ import torch.nn.functional as F
 def normalize_adj(A, eps=1e-6):
     """
     A: B × N × N
-    对邻接矩阵做 D^{-1/2} A D^{-1/2} 归一化
+    D^{-1/2} A D^{-1/2}
     """
     degree = A.sum(dim=-1)
     degree_inv_sqrt = torch.pow(degree + eps, -0.5)
@@ -15,17 +15,19 @@ def normalize_adj(A, eps=1e-6):
 
 
 class SignedGCNLayer(nn.Module):
-    def __init__(self, in_dim, out_dim, dropout=0.5):
+    def __init__(self, hidden_dim, dropout=0.5):
         super().__init__()
 
-        self.pos_linear = nn.Linear(in_dim, out_dim)
-        self.neg_linear = nn.Linear(in_dim, out_dim)
+        self.pos_linear = nn.Linear(hidden_dim, hidden_dim)
+        self.neg_linear = nn.Linear(hidden_dim, hidden_dim)
 
         self.out_proj = nn.Sequential(
-            nn.Linear(out_dim * 2, out_dim),
+            nn.Linear(hidden_dim * 2, hidden_dim),
             nn.ReLU(),
-            nn.Dropout(dropout)
+            nn.Dropout(dropout),
         )
+
+        self.norm = nn.LayerNorm(hidden_dim)
 
     def forward(self, H, A_pos, A_neg):
         """
@@ -33,6 +35,8 @@ class SignedGCNLayer(nn.Module):
         A_pos: B × N × N
         A_neg: B × N × N
         """
+        H_res = H
+
         H_pos = torch.bmm(A_pos, H)
         H_neg = torch.bmm(A_neg, H)
 
@@ -41,6 +45,9 @@ class SignedGCNLayer(nn.Module):
 
         H_out = torch.cat([H_pos, H_neg], dim=-1)
         H_out = self.out_proj(H_out)
+
+        # residual connection，防止过平滑和塌缩
+        H_out = self.norm(H_out + H_res)
 
         return H_out
 
@@ -51,20 +58,21 @@ class SignedGraphEncoder(nn.Module):
 
         self.num_nodes = num_nodes
 
-        # 每个 ROI 用可学习节点嵌入作为初始特征
-        self.node_embedding = nn.Parameter(
-            torch.randn(num_nodes, hidden_dim) * 0.02
+        # 每个节点初始特征是该节点的 FC row，所以输入维度是 num_nodes
+        self.input_proj = nn.Sequential(
+            nn.Linear(num_nodes, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.LayerNorm(hidden_dim)
         )
 
         self.layer1 = SignedGCNLayer(
-            in_dim=hidden_dim,
-            out_dim=hidden_dim,
+            hidden_dim=hidden_dim,
             dropout=dropout
         )
 
         self.layer2 = SignedGCNLayer(
-            in_dim=hidden_dim,
-            out_dim=hidden_dim,
+            hidden_dim=hidden_dim,
             dropout=dropout
         )
 
@@ -83,22 +91,19 @@ class SignedGraphEncoder(nn.Module):
         A_pos = torch.clamp(fc, min=0.0)
         A_neg = torch.clamp(-fc, min=0.0)
 
-        # 加自环
+        # 正边加自环；负边不建议加自环
         I = torch.eye(N, device=fc.device).unsqueeze(0).expand(B, -1, -1)
         A_pos = A_pos + I
-        A_neg = A_neg + I
 
-        # 图归一化
         A_pos = normalize_adj(A_pos)
         A_neg = normalize_adj(A_neg)
 
-        # 初始节点特征：B × N × hidden_dim
-        H = self.node_embedding.unsqueeze(0).expand(B, -1, -1)
+        # 关键改动：使用每个受试者自己的 FC row 作为节点特征
+        H = self.input_proj(fc)
 
         H = self.layer1(H, A_pos, A_neg)
         H = self.layer2(H, A_pos, A_neg)
 
-        # mean pooling 作为图级表示
         graph_emb = H.mean(dim=1)
         graph_emb = self.graph_proj(graph_emb)
 
