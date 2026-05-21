@@ -1,0 +1,24 @@
+data:
+  data_root: /kaggle/input/datasets/xingyushen666/abide-fc-three-atlas
+  use_atlas:
+    - aal
+    - cc200
+    - ho
+
+train:
+  seeds: [0, 1, 2, 3, 4]
+  n_splits: 5
+  epochs: 80
+  batch_size: 32
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+  use_best_val: true
+  val_ratio: 0.15
+
+model:
+  model_name: smaf_gated_v5
+  hidden_dim: 256
+  embedding_dim: 128
+  dropout: 0.5
+  fusion: atlas_gated_fusion
+  encoder: signed_edge_branch

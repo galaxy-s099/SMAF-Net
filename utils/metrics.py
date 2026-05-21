@@ -22,10 +22,10 @@ def compute_metrics(y_true, y_prob, y_pred):
 
 
 def summarize_results(results):
-    keys = results[0].keys()
+    metric_keys = ["ACC", "AUC", "SEN", "SPE", "F1"]
     summary = {}
 
-    for key in keys:
+    for key in metric_keys:
         values = np.array([r[key] for r in results])
         summary[key + "_mean"] = values.mean()
         summary[key + "_std"] = values.std()
