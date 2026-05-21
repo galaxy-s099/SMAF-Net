@@ -1,0 +1,22 @@
+data:
+  data_root: /kaggle/input/datasets/xingyushen666/abide-fc-three-atlas
+  use_atlas:
+    - aal
+    - cc200
+    - ho
+
+train:
+  seeds: [0]
+  n_splits: 2
+  epochs: 2
+  batch_size: 16
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+
+model:
+  hidden_dim: 64
+  embedding_dim: 64
+  dropout: 0.5
+  fusion: concat
+  encoder: signed_gcn_fcrow
+  pooling: mean
