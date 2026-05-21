@@ -8,6 +8,7 @@ from sklearn.model_selection import StratifiedKFold
 
 from data.abide_dataset import ABIDEMultiAtlasDataset, load_labels
 from models.smaf_net import SMAFNetV1
+from models.smaf_edge_net import SMAFEdgeNet
 from utils.seed import set_seed
 from utils.metrics import compute_metrics, summarize_results
 
@@ -17,6 +18,7 @@ def train_one_fold(
     train_idx,
     test_idx,
     seed,
+    config,
     epochs=80,
     batch_size=32,
     lr=1e-3,
@@ -43,11 +45,23 @@ def train_one_fold(
         shuffle=False
     )
 
-    model = SMAFNetV1(
-        hidden_dim=hidden_dim,
-        embedding_dim=embedding_dim,
-        dropout=dropout
-    ).to(device)
+    model_name = "smaf_v1"
+    if "model_name" in config["model"]:
+        model_name = config["model"]["model_name"]
+
+    if model_name == "smaf_edge_v4":
+        model = SMAFEdgeNet(
+            hidden_dim=hidden_dim,
+            embedding_dim=embedding_dim,
+            dropout=dropout,
+            num_heads=config["model"].get("num_heads", 4)
+        ).to(device)
+    else:
+        model = SMAFNetV1(
+            hidden_dim=hidden_dim,
+            embedding_dim=embedding_dim,
+            dropout=dropout
+        ).to(device)
 
     optimizer = torch.optim.Adam(
         model.parameters(),
@@ -129,6 +143,7 @@ def run_repeated_cv(config):
                 train_idx=train_idx,
                 test_idx=test_idx,
                 seed=seed * 100 + fold,
+                config=config,
                 epochs=config["train"]["epochs"],
                 batch_size=config["train"]["batch_size"],
                 lr=config["train"]["lr"],
