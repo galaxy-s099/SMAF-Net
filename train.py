@@ -9,6 +9,7 @@ from sklearn.model_selection import StratifiedKFold
 from data.abide_dataset import ABIDEMultiAtlasDataset, load_labels
 from models.smaf_net import SMAFNetV1
 from models.smaf_edge_net import SMAFEdgeNet
+from models.smaf_uncertainty_net import SMAFUncertaintyNet
 from utils.seed import set_seed
 from utils.metrics import compute_metrics, summarize_results
 
@@ -45,9 +46,7 @@ def train_one_fold(
         shuffle=False
     )
 
-    model_name = "smaf_v1"
-    if "model_name" in config["model"]:
-        model_name = config["model"]["model_name"]
+    model_name = config["model"].get("model_name", "smaf_v1")
 
     if model_name == "smaf_edge_v4":
         model = SMAFEdgeNet(
@@ -56,6 +55,15 @@ def train_one_fold(
             dropout=dropout,
             num_heads=config["model"].get("num_heads", 4)
         ).to(device)
+
+    elif model_name == "smaf_uncertainty_v4_2":
+        model = SMAFUncertaintyNet(
+            hidden_dim=hidden_dim,
+            embedding_dim=embedding_dim,
+            dropout=dropout,
+            temperature=config["model"].get("temperature", 1.0)
+        ).to(device)
+
     else:
         model = SMAFNetV1(
             hidden_dim=hidden_dim,
