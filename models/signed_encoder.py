@@ -3,6 +3,26 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+class AttentionPooling(nn.Module):
+    def __init__(self, input_dim, hidden_dim=64):
+        super().__init__()
+
+        self.attn = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.Tanh(),
+            nn.Linear(hidden_dim, 1)
+        )
+
+    def forward(self, h):
+        """
+        h: B × N × D
+        """
+        score = self.attn(h)              # B × N × 1
+        weight = torch.softmax(score, dim=1)
+        graph_emb = torch.sum(weight * h, dim=1)
+        return graph_emb, weight
+
+
 class SignedGraphEncoder(nn.Module):
     def __init__(self, num_nodes, hidden_dim=128, embedding_dim=128, dropout=0.5):
         super().__init__()
@@ -12,10 +32,15 @@ class SignedGraphEncoder(nn.Module):
         self.pos_linear = nn.Linear(num_nodes, hidden_dim)
         self.neg_linear = nn.Linear(num_nodes, hidden_dim)
 
-        self.proj = nn.Sequential(
+        self.node_proj = nn.Sequential(
             nn.Linear(hidden_dim * 2, embedding_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
+        )
+
+        self.attn_pool = AttentionPooling(
+            input_dim=embedding_dim,
+            hidden_dim=max(embedding_dim // 2, 32)
         )
 
     def forward(self, fc):
@@ -29,9 +54,8 @@ class SignedGraphEncoder(nn.Module):
         h_neg = F.relu(self.neg_linear(A_neg))
 
         h = torch.cat([h_pos, h_neg], dim=-1)
-        h = self.proj(h)
+        h = self.node_proj(h)
 
-        # graph-level pooling
-        graph_emb = h.mean(dim=1)
+        graph_emb, attn_weight = self.attn_pool(h)
 
         return graph_emb
