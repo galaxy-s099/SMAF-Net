@@ -1,0 +1,20 @@
+data:
+  data_root: /kaggle/input/datasets/xingyushen666/abide-fc-three-atlas
+  use_atlas:
+    - aal
+    - cc200
+    - ho
+
+train:
+  seeds: [0, 1, 2, 3, 4]
+  n_splits: 5
+  epochs: 80
+  batch_size: 32
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+
+model:
+  hidden_dim: 128
+  embedding_dim: 128
+  dropout: 0.5
+  fusion: concat
