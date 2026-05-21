@@ -10,6 +10,7 @@ from data.abide_dataset import ABIDEMultiAtlasDataset, load_labels
 from models.smaf_net import SMAFNetV1
 from models.smaf_edge_net import SMAFEdgeNet
 from models.smaf_uncertainty_net import SMAFUncertaintyNet
+from models.smaf_gated_net import SMAFGatedNet
 from utils.seed import set_seed
 from utils.metrics import compute_metrics, summarize_results
 
@@ -62,6 +63,13 @@ def train_one_fold(
             embedding_dim=embedding_dim,
             dropout=dropout,
             temperature=config["model"].get("temperature", 1.0)
+        ).to(device)
+
+    elif model_name == "smaf_gated_v5":
+        model = SMAFGatedNet(
+            hidden_dim=hidden_dim,
+            embedding_dim=embedding_dim,
+            dropout=dropout
         ).to(device)
 
     else:
